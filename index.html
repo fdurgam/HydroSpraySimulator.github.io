@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulador de Riego por Aspersión</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8;
+        }
+        .control-panel {
+            background-color: white;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        }
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #2563eb;
+            cursor: pointer;
+            border-radius: 50%;
+        }
+        .slider::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            background: #2563eb;
+            cursor: pointer;
+            border-radius: 50%;
+        }
+        canvas {
+            background-color: #e0f2fe;
+            border-radius: 0.5rem;
+            border: 1px solid #bae6fd;
+            display: block;
+            width: 100%;
+            height: auto;
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4">
+
+    <main class="w-full max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <!-- Panel de Controles -->
+        <div class="lg:col-span-1 control-panel p-6 space-y-6">
+            <h1 class="text-2xl font-bold text-gray-800">Simulador de Riego 💦</h1>
+            
+            <!-- Control de Ancho del Campo -->
+            <div>
+                <label for="fieldWidth" class="block text-sm font-medium text-gray-700">Ancho del Campo (m)</label>
+                <div class="flex items-center space-x-4 mt-2">
+                    <input type="range" id="fieldWidth" min="10" max="200" value="100" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider">
+                    <span id="fieldWidthValue" class="font-semibold text-blue-600 w-12 text-center">100m</span>
+                </div>
+            </div>
+
+            <!-- Control de Largo del Campo -->
+            <div>
+                <label for="fieldLength" class="block text-sm font-medium text-gray-700">Largo del Campo (m)</label>
+                <div class="flex items-center space-x-4 mt-2">
+                    <input type="range" id="fieldLength" min="10" max="200" value="60" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider">
+                    <span id="fieldLengthValue" class="font-semibold text-blue-600 w-12 text-center">60m</span>
+                </div>
+            </div>
+
+            <!-- Control de Cantidad de Aspersores -->
+            <div>
+                <label for="sprinklerCount" class="block text-sm font-medium text-gray-700">Cantidad de Aspersores</label>
+                <div class="flex items-center space-x-4 mt-2">
+                    <input type="range" id="sprinklerCount" min="1" max="100" value="12" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider">
+                    <span id="sprinklerCountValue" class="font-semibold text-blue-600 w-12 text-center">12</span>
+                </div>
+            </div>
+
+            <!-- Control de Radio de Riego -->
+            <div>
+                <label for="sprinklerRadius" class="block text-sm font-medium text-gray-700">Radio de Riego (m)</label>
+                <div class="flex items-center space-x-4 mt-2">
+                    <input type="range" id="sprinklerRadius" min="1" max="50" value="15" step="0.5" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider">
+                    <span id="sprinklerRadiusValue" class="font-semibold text-blue-600 w-12 text-center">15m</span>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Canvas de Simulación -->
+        <div class="lg:col-span-2 flex items-center justify-center p-4 bg-white rounded-lg shadow-md">
+            <canvas id="simulationCanvas"></canvas>
+        </div>
+
+    </main>
+
+    <script>
+        // --- Referencias a Elementos del DOM ---
+        const canvas = document.getElementById('simulationCanvas');
+        const ctx = canvas.getContext('2d');
+
+        const fieldWidthSlider = document.getElementById('fieldWidth');
+        const fieldLengthSlider = document.getElementById('fieldLength');
+        const sprinklerCountSlider = document.getElementById('sprinklerCount');
+        const sprinklerRadiusSlider = document.getElementById('sprinklerRadius');
+
+        const fieldWidthValue = document.getElementById('fieldWidthValue');
+        const fieldLengthValue = document.getElementById('fieldLengthValue');
+        const sprinklerCountValue = document.getElementById('sprinklerCountValue');
+        const sprinklerRadiusValue = document.getElementById('sprinklerRadiusValue');
+
+        // --- Función Principal de Dibujo ---
+        function drawSimulation() {
+            // Obtener valores actuales de los deslizadores
+            const width = parseInt(fieldWidthSlider.value);
+            const length = parseInt(fieldLengthSlider.value);
+            const numSprinklers = parseInt(sprinklerCountSlider.value);
+            const radius = parseFloat(sprinklerRadiusSlider.value);
+
+            // Actualizar los valores de texto
+            fieldWidthValue.textContent = `${width}m`;
+            fieldLengthValue.textContent = `${length}m`;
+            sprinklerCountValue.textContent = numSprinklers;
+            sprinklerRadiusValue.textContent = `${radius}m`;
+
+            // --- Ajuste Responsivo del Canvas ---
+            const container = canvas.parentElement;
+            const size = Math.min(container.clientWidth, container.clientHeight);
+            canvas.width = size;
+            canvas.height = (size * length) / width;
+            
+            // --- Escala de Metros a Píxeles ---
+            const scale = canvas.width / width;
+
+            // Limpiar el canvas antes de volver a dibujar
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Dibujar el campo de juego (césped)
+            ctx.fillStyle = '#a7f3d0'; // Verde claro para el césped
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.strokeStyle = '#059669'; // Borde verde oscuro
+            ctx.lineWidth = 2;
+            ctx.strokeRect(0, 0, canvas.width, canvas.height);
+
+            if (numSprinklers <= 0) return;
+
+            // --- Cálculo de Posiciones de Aspersores en Cuadrícula ---
+            const aspectRatio = width / length;
+            let cols = Math.ceil(Math.sqrt(numSprinklers * aspectRatio));
+            let rows = Math.ceil(numSprinklers / cols);
+            
+            // Ajuste para asegurar que el número de celdas sea suficiente
+            while (rows * cols < numSprinklers) {
+                 if ((cols + 1) / rows < aspectRatio) {
+                    cols++;
+                } else {
+                    rows++;
+                }
+            }
+
+            const xSpacing = width / (cols + 1);
+            const ySpacing = length / (rows + 1);
+            let sprinklerCountDrawn = 0;
+
+            // --- Dibujar Aspersores y Círculos de Riego ---
+            for (let i = 1; i <= cols; i++) {
+                for (let j = 1; j <= rows; j++) {
+                    if (sprinklerCountDrawn >= numSprinklers) break;
+                    
+                    const x = i * xSpacing;
+                    const y = j * ySpacing;
+
+                    // Dibujar el círculo de riego
+                    ctx.beginPath();
+                    ctx.arc(x * scale, y * scale, radius * scale, 0, 2 * Math.PI);
+                    ctx.fillStyle = 'rgba(56, 189, 248, 0.4)'; // Azul claro semitransparente
+                    ctx.fill();
+                    ctx.strokeStyle = 'rgba(2, 132, 199, 0.6)';
+                    ctx.stroke();
+
+                    // Dibujar el aspersor (centro)
+                    ctx.beginPath();
+                    ctx.arc(x * scale, y * scale, 3, 0, 2 * Math.PI);
+                    ctx.fillStyle = '#1e3a8a'; // Azul oscuro para el aspersor
+                    ctx.fill();
+                    
+                    sprinklerCountDrawn++;
+                }
+                if (sprinklerCountDrawn >= numSprinklers) break;
+            }
+        }
+
+        // --- Event Listeners ---
+        // Dibujar cuando se mueve un deslizador
+        [fieldWidthSlider, fieldLengthSlider, sprinklerCountSlider, sprinklerRadiusSlider].forEach(slider => {
+            slider.addEventListener('input', drawSimulation);
+        });
+
+        // Dibujar cuando la ventana cambia de tamaño
+        window.addEventListener('resize', drawSimulation);
+
+        // Dibujo inicial al cargar la página
+        window.onload = drawSimulation;
+
+    </script>
+</body>
+</html>
